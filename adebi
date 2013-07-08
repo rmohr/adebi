@@ -1,0 +1,99 @@
+#!/usr/bin/env python
+#
+# Copyright 2013 Roman Mohr.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import argparse
+import re
+import subprocess
+import tempfile
+import shutil
+import os
+import sys
+import glob
+
+
+def cleanup(origin, tempdir):
+    os.chdir(origin)
+    shutil.rmtree(tempdir)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", "--name", required=True,
+                        help="package name", type=str)
+    parser.add_argument("-v", "--version", required=True, help="package \
+                        version", type=str)
+    parser.add_argument("-d", "--dependencies", required=True, help="package \
+                        dependencies as comma separated list", type=str)
+    parser.add_argument("-m", "--maintainer", help="package maintainer",
+                        default="deb-dep", type=str)
+    parser.add_argument("-e", "--email", help="email of package maintainer",
+                        default="deb-dep@deb-dep.com", type=str)
+    parser.add_argument("-s", "--simulate", help="simulate installation only",
+                        action='store_true')
+    parser.add_argument("-p", "--package-only", help="creates a debian " \
+                        "package and places it in the current directory",
+                        action="store_true")
+
+    args = parser.parse_args()
+
+    gdebi_opts = []
+    if args.simulate:
+        gbebi_opts = gdebi_opts.append("--apt-line")
+
+    dependencies = args.dependencies.strip(" \n\t,")
+    if re.search("\s", dependencies) and not re.search(",", dependencies):
+        print >> sys.stderr, "[Error] %s" \
+            % ("Missing semicolons in dependency list.")
+        sys.exit(255)
+
+    tempdir = tempfile.mkdtemp(prefix="deb-dep")
+    current = os.getcwd()
+    os.chdir(tempdir)
+    filename = "%s.control" % (args.name)
+    try:
+        with open(filename, 'w') as control_file:
+            control_file.write(
+                "Package: %s\n"
+                "Version: %s\n"
+                "Maintainer: %s <%s>\n"
+                "Depends: %s\n" % (args.name, args.version, args.maintainer,
+                                   args.email, dependencies)
+            )
+
+        subprocess.check_call(["/usr/bin/equivs-build", filename])
+        if (args.package_only == False):    
+            subprocess.check_call(["/usr/bin/gdebi", "%s_%s_all.deb"
+                               % (args.name, args.version)] + gdebi_opts)
+        else:
+            deb_files = glob.glob('./*.deb')
+            for deb_file in deb_files:
+                shutil.move(deb_file,current)
+            cleanup(current, tempdir)
+            sys.exit(0)
+
+    except Exception as e:
+        cleanup(current, tempdir)
+        print >> sys.stderr, '[Error] %s' % (e)
+        sys.exit(255)
+
+    print "Package '%s' successfully installed." % (args.name)
+    print "Run 'apt-get remove %s' to " \
+          "remove the package and it's dependencies." % (args.name)
+    cleanup(current, tempdir)
+
+if __name__ == '__main__':
+    main()
