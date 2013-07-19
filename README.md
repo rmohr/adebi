@@ -7,6 +7,13 @@ debian packages to satisfy their dependencies by name and version by
 commandline. No control-files, etc. are necessary.
 It uses and combines the functionalitiy of 'equivs' and 'gdebi' to achive this.
 
+Dependencies
+============
+
+```bash
+apt-get install equivs gdebi
+```
+
 Usage
 =====
 
