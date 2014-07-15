@@ -40,7 +40,7 @@ optional arguments:
 Examples
 =======
 As the following examples show, dependencies can be specified in a quite
-flexible way. The only import rule is to to put round brackets around version
+flexible way. The only important rule is to to put round brackets around version
 strings.
 
 ```bash
